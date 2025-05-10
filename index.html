@@ -1,0 +1,228 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculadora de Descuentos - El Salvador</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito&display=swap" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/a2d9d6e5b8.js" crossorigin="anonymous"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(to right, #ffffff, #e7f0fd);
+    }
+    h3 {
+      color: #0047AB;
+    }
+    .btn-outline-primary i,
+    .btn-outline-success i,
+    .btn-outline-secondary i {
+      margin-right: 6px;
+    }
+    body {
+      background-color: #f2f6fc;
+    }
+    .card {
+      border-radius: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-6">
+        <div class="card p-4">
+          <h3 class="text-center text-primary mb-4">Calculadora de Descuentos de Ley</h3>
+
+          <div class="mb-3">
+            <label class="form-label">Periodo de Pago</label>
+            <select id="periodoPago" class="form-select mb-3">
+              <option value="mensual" selected>Mensual</option>
+              <option value="quincenal">Quincenal</option>
+              <option value="semanal">Semanal</option>
+            </select>
+            <label for="salario" class="form-label">Salario Bruto ($)</label>
+            <input type="number" id="salario" class="form-control" placeholder="Ingresa tu salario" />
+          </div>
+
+          <button class="btn btn-success w-100 mb-3" onclick="calcularDescuentos()">Calcular</button>
+
+          <div id="resultados" style="display: none;">
+            <h5 class="text-primary">Resultados:</h5>
+            <p><strong>Base Imponible (Salario - AFP - ISSS):</strong> $<span id="baseImponible"></span></p>
+            <ul class="list-group mb-3">
+              <li class="list-group-item">ISSS: $<span id="isss"></span></li>
+              <li class="list-group-item">AFP: $<span id="afp"></span></li>
+              <li class="list-group-item">Renta: $<span id="renta"></span></li>
+              <li class="list-group-item fw-bold">Salario Neto: $<span id="neto"></span></li>
+            </ul>
+            <canvas id="graficoDescuentos" height="150"></canvas><hr/>
+            <div class="d-flex justify-content-between">
+              <button class="btn btn-outline-primary" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+              <button class="btn btn-outline-success" onclick="compartir()"><i class="fas fa-share-alt"></i> Compartir</button>
+       <button class="btn btn-outline-secondary" onclick="exportarPDF()"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let chart;
+    function calcularDescuentos() {
+      let salario = parseFloat(document.getElementById('salario').value);
+      const periodo = document.getElementById('periodoPago').value;
+      if (isNaN(salario) || salario <= 0) {
+        alert('Por favor, ingresa un salario válido.');
+        return;
+      }
+
+      let salarioOriginal = salario;
+      if (periodo === 'quincenal') salario *= 2;
+      if (periodo === 'semanal') salario *= 4.333;
+
+      const isss = Math.min(salario * 0.03, 30);
+      const afp = Math.min(salario, 7028.29) * 0.0725;
+      const baseImponible = salario - isss - afp;
+      const renta = calcularRenta(baseImponible, periodo);
+      const neto = salarioOriginal - isss - afp - renta;
+
+      document.getElementById('isss').innerText = isss.toFixed(2);
+      document.getElementById('afp').innerText = afp.toFixed(2);
+      document.getElementById('renta').innerText = renta.toFixed(2);
+      document.getElementById('baseImponible').innerText = baseImponible.toFixed(2);
+      document.getElementById('neto').innerText = neto.toFixed(2);
+
+      document.getElementById('resultados').style.display = 'block';
+
+      const ctx = document.getElementById('graficoDescuentos').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['ISSS', 'AFP', 'Renta', 'Salario Neto'],
+          datasets: [{
+            label: 'Monto ($)',
+            data: [isss, afp, renta, neto],
+            backgroundColor: ['#007bff', '#28a745', '#dc3545', '#ffc107']
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function calcularRenta(salario, periodo) {
+      let base = 0, porcentaje = 0, cuotaFija = 0;
+      if (periodo === 'mensual') {
+        if (salario <= 550) return 0;
+        else if (salario <= 895.24) {
+          base = 550; porcentaje = 0.10; cuotaFija = 17.67;
+        } else if (salario <= 2038.10) {
+          base = 895.24; porcentaje = 0.20; cuotaFija = 60.00;
+        } else {
+          base = 2038.10; porcentaje = 0.30; cuotaFija = 288.57;
+        }
+      } else if (periodo === 'quincenal') {
+        if (salario <= 275) return 0;
+        else if (salario <= 447.62) {
+          base = 275; porcentaje = 0.10; cuotaFija = 8.83;
+        } else if (salario <= 1019.05) {
+          base = 447.62; porcentaje = 0.20; cuotaFija = 30.00;
+        } else {
+          base = 1019.05; porcentaje = 0.30; cuotaFija = 144.28;
+        }
+      } else {
+        if (salario <= 137.50) return 0;
+        else if (salario <= 223.81) {
+          base = 137.50; porcentaje = 0.10; cuotaFija = 4.42;
+        } else if (salario <= 509.52) {
+          base = 223.81; porcentaje = 0.20; cuotaFija = 15.00;
+        } else {
+          base = 509.52; porcentaje = 0.30; cuotaFija = 72.14;
+        }
+      }
+      return ((salario - base) * porcentaje) + cuotaFija;
+    }
+
+    function compartir() {
+      const neto = document.getElementById('neto').innerText;
+      const texto = `Cálculo de descuentos:
+Salario Bruto: $${salarioOriginal.toFixed(2)}
+ISSS (3%): $${isss.toFixed(2)}
+AFP (7.25%): $${afp.toFixed(2)}
+Base Imponible: $${baseImponible.toFixed(2)}
+Renta (ISR): $${renta.toFixed(2)}
+Salario Neto: $${neto.toFixed(2)}`;
+      if (navigator.share) {
+        navigator.share({ title: "Cálculo de Salario Neto", text: texto });
+      } else {
+        window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`);
+      }
+    }
+  </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  function exportarPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    const salario = document.getElementById('salario').value;
+    const periodo = document.getElementById('periodoPago').value;
+    const isss = document.getElementById('isss').innerText;
+    const afp = document.getElementById('afp').innerText;
+    const renta = document.getElementById('renta').innerText;
+    const base = document.getElementById('baseImponible').innerText;
+    const neto = document.getElementById('neto').innerText;
+
+    doc.setFontSize(14);
+    doc.text("Resumen de Descuentos de Ley - El Salvador", 10, 20);
+    doc.setFontSize(12);
+    doc.text(`Periodo de Pago: ${periodo}`, 10, 30);
+    doc.text(`Salario Bruto: $${salario}`, 10, 40);
+    doc.text(`ISSS (3%): $${isss}`, 10, 50);
+    doc.text(`AFP (7.25%): $${afp}`, 10, 60);
+    doc.text(`Base Imponible: $${base}`, 10, 70);
+    doc.text(`Renta (ISR): $${renta}`, 10, 80);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Salario Neto: $${neto}`, 10, 90);
+
+    doc.save("resumen_descuentos.pdf");
+  }
+
+  function compartir() {
+    const salario = document.getElementById('salario').value;
+    const periodo = document.getElementById('periodoPago').value;
+    const isss = document.getElementById('isss').innerText;
+    const afp = document.getElementById('afp').innerText;
+    const renta = document.getElementById('renta').innerText;
+    const base = document.getElementById('baseImponible').innerText;
+    const neto = document.getElementById('neto').innerText;
+
+    const texto = `Cálculo de descuentos:
+Periodo de Pago: ${periodo}
+Salario Bruto: $${salario}
+ISSS (3%): $${isss}
+AFP (7.25%): $${afp}
+Base Imponible: $${base}
+Renta (ISR): $${renta}
+Salario Neto: $${neto}`;
+
+    const mensaje = encodeURIComponent(texto);
+    window.open(`https://wa.me/?text=${mensaje}`, '_blank');
+  }
+</script>
+</body>
+</html>
